@@ -1,0 +1,21 @@
+{
+  "name": "@kilnai/integration-google-sheets",
+  "version": "0.1.0",
+  "description": "Google Sheets integration adapter for Kiln AI — read ranges, append rows, update cells",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": ["dist"],
+  "dependencies": {
+    "@kilnai/integration-shared": "workspace:*"
+  },
+  "peerDependencies": {
+    "@kilnai/core": ">=0.14.0"
+  }
+}

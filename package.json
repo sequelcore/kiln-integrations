@@ -1,0 +1,15 @@
+{
+  "name": "kiln-integrations",
+  "private": true,
+  "workspaces": ["packages/*"],
+  "scripts": {
+    "typecheck": "tsc -b packages/shared packages/google-calendar packages/stripe packages/google-sheets",
+    "test": "vitest run",
+    "build": "bun run typecheck"
+  },
+  "devDependencies": {
+    "@kilnai/core": "file:../kiln/packages/core",
+    "typescript": "^5.6.0",
+    "vitest": "^3.0.0"
+  }
+}
