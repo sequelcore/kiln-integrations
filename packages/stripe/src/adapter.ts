@@ -1,4 +1,5 @@
 import type { IntegrationAdapter, IntegrationResult, ResolvedCredential, ExecutionOptions } from "@kilnai/core";
+import type Stripe from "stripe";
 import { StripeApi } from "./api.js";
 
 export const adapter: IntegrationAdapter = {
@@ -69,26 +70,41 @@ export const adapter: IntegrationAdapter = {
     operation: string,
     credentials: ResolvedCredential,
     input: Record<string, unknown>,
-    options?: ExecutionOptions,
+    _options?: ExecutionOptions,
   ): Promise<IntegrationResult> {
-    const api = new StripeApi(credentials, options?.signal);
+    const api = new StripeApi(credentials);
 
     switch (operation) {
       case "create_payment_link": {
-        const link = await api.createPaymentLink({
-          lineItems: input.lineItems as Array<{ price: string; quantity: number }>,
-          metadata: input.metadata as Record<string, string> | undefined,
-          afterCompletionType: input.afterCompletionType as "redirect" | "hosted_confirmation" | undefined,
-          afterCompletionRedirectUrl: input.afterCompletionRedirectUrl as string | undefined,
-        });
+        const params: Stripe.PaymentLinkCreateParams = {
+          line_items: (input.lineItems as Array<{ price: string; quantity: number }>).map((item) => ({
+            price: item.price,
+            quantity: item.quantity,
+          })),
+        };
+        if (input.metadata) {
+          params.metadata = input.metadata as Stripe.MetadataParam;
+        }
+        if (input.afterCompletionType) {
+          const type = input.afterCompletionType as "redirect" | "hosted_confirmation";
+          if (type === "redirect" && input.afterCompletionRedirectUrl) {
+            params.after_completion = {
+              type: "redirect",
+              redirect: { url: input.afterCompletionRedirectUrl as string },
+            };
+          } else {
+            params.after_completion = { type };
+          }
+        }
+        const link = await api.createPaymentLink(params);
         return { data: { id: link.id, url: link.url, active: link.active } };
       }
 
       case "list_payment_links": {
-        const links = await api.listPaymentLinks({
-          limit: input.limit as number | undefined,
-          active: input.active as boolean | undefined,
-        });
+        const params: Stripe.PaymentLinkListParams = {};
+        if (input.limit) params.limit = input.limit as number;
+        if (input.active !== undefined) params.active = input.active as boolean;
+        const links = await api.listPaymentLinks(params);
         return { data: { links: links.map((l) => ({ id: l.id, url: l.url, active: l.active })) } };
       }
 

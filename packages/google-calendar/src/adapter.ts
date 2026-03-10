@@ -1,4 +1,5 @@
 import type { IntegrationAdapter, IntegrationResult, ResolvedCredential, ExecutionOptions } from "@kilnai/core";
+import type { calendar_v3 } from "@googleapis/calendar";
 import { GoogleCalendarApi } from "./api.js";
 
 export const adapter: IntegrationAdapter = {
@@ -87,17 +88,17 @@ export const adapter: IntegrationAdapter = {
     operation: string,
     credentials: ResolvedCredential,
     input: Record<string, unknown>,
-    options?: ExecutionOptions,
+    _options?: ExecutionOptions,
   ): Promise<IntegrationResult> {
-    const api = new GoogleCalendarApi(credentials, options?.signal);
+    const api = new GoogleCalendarApi(credentials);
 
     switch (operation) {
       case "check_availability": {
-        const busy = await api.checkAvailability({
-          timeMin: input.timeMin as string,
-          timeMax: input.timeMax as string,
-          calendarId: input.calendarId as string | undefined,
-        });
+        const busy = await api.checkAvailability(
+          input.timeMin as string,
+          input.timeMax as string,
+          input.calendarId as string | undefined,
+        );
         return { data: { busy } };
       }
 
@@ -121,12 +122,12 @@ export const adapter: IntegrationAdapter = {
       case "update_event": {
         const calendarId = (input.calendarId as string | undefined) ?? "primary";
         const eventId = input.eventId as string;
-        const patch: Record<string, unknown> = {};
-        if (input.summary) patch.summary = input.summary;
-        if (input.description !== undefined) patch.description = input.description;
-        if (input.location !== undefined) patch.location = input.location;
-        if (input.startDateTime) patch.start = { dateTime: input.startDateTime };
-        if (input.endDateTime) patch.end = { dateTime: input.endDateTime };
+        const patch: calendar_v3.Schema$Event = {};
+        if (input.summary) patch.summary = input.summary as string;
+        if (input.description !== undefined) patch.description = input.description as string;
+        if (input.location !== undefined) patch.location = input.location as string;
+        if (input.startDateTime) patch.start = { dateTime: input.startDateTime as string };
+        if (input.endDateTime) patch.end = { dateTime: input.endDateTime as string };
         const event = await api.updateEvent(calendarId, eventId, patch);
         return { data: { event } };
       }
@@ -143,22 +144,22 @@ export const adapter: IntegrationAdapter = {
   },
 };
 
-function buildEventBody(input: Record<string, unknown>): Record<string, unknown> {
-  const event: Record<string, unknown> = { summary: input.summary };
+function buildEventBody(input: Record<string, unknown>): calendar_v3.Schema$Event {
+  const event: calendar_v3.Schema$Event = { summary: input.summary as string };
 
   if (input.startDateTime) {
-    event.start = { dateTime: input.startDateTime, timeZone: input.timeZone };
+    event.start = { dateTime: input.startDateTime as string, timeZone: input.timeZone as string | undefined };
     event.end = {
-      dateTime: input.endDateTime ?? input.startDateTime,
-      timeZone: input.timeZone,
+      dateTime: (input.endDateTime ?? input.startDateTime) as string,
+      timeZone: input.timeZone as string | undefined,
     };
   } else if (input.startDate) {
-    event.start = { date: input.startDate };
-    event.end = { date: input.endDate ?? input.startDate };
+    event.start = { date: input.startDate as string };
+    event.end = { date: (input.endDate ?? input.startDate) as string };
   }
 
-  if (input.description) event.description = input.description;
-  if (input.location) event.location = input.location;
+  if (input.description) event.description = input.description as string;
+  if (input.location) event.location = input.location as string;
   if (input.attendees) {
     event.attendees = (input.attendees as string[]).map((email) => ({ email }));
   }

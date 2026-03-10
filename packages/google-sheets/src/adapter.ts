@@ -57,9 +57,9 @@ export const adapter: IntegrationAdapter = {
     operation: string,
     credentials: ResolvedCredential,
     input: Record<string, unknown>,
-    options?: ExecutionOptions,
+    _options?: ExecutionOptions,
   ): Promise<IntegrationResult> {
-    const api = new GoogleSheetsApi(credentials, options?.signal);
+    const api = new GoogleSheetsApi(credentials);
     const spreadsheetId = input.spreadsheetId as string;
     const range = input.range as string;
 
@@ -71,12 +71,27 @@ export const adapter: IntegrationAdapter = {
 
       case "append_rows": {
         const result = await api.appendRows(spreadsheetId, range, input.values as unknown[][]);
-        return { data: result };
+        const updates = result.updates;
+        return {
+          data: {
+            updatedRange: updates?.updatedRange,
+            updatedRows: updates?.updatedRows,
+            updatedColumns: updates?.updatedColumns,
+            updatedCells: updates?.updatedCells,
+          },
+        };
       }
 
       case "update_range": {
         const result = await api.updateRange(spreadsheetId, range, input.values as unknown[][]);
-        return { data: { range: result.range, values: result.values } };
+        return {
+          data: {
+            updatedRange: result.updatedRange,
+            updatedRows: result.updatedRows,
+            updatedColumns: result.updatedColumns,
+            updatedCells: result.updatedCells,
+          },
+        };
       }
 
       default:

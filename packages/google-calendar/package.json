@@ -13,7 +13,7 @@
   },
   "files": ["dist"],
   "dependencies": {
-    "@kilnai/integration-shared": "workspace:*"
+    "@googleapis/calendar": "^14.2.0"
   },
   "peerDependencies": {
     "@kilnai/core": ">=0.14.0"

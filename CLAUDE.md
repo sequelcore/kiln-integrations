@@ -1,6 +1,6 @@
 # Kiln Integrations — Third-Party Adapter Packages
 
-Bun monorepo containing `IntegrationAdapter` implementations for Kiln's integration runtime. Each adapter is a separate npm package that talks to a third-party API (Google Calendar, Stripe, Google Sheets). Adapters depend on `@kilnai/core` for the `IntegrationAdapter` interface and `@kilnai/integration-shared` for HTTP utilities.
+Bun monorepo containing `IntegrationAdapter` implementations for Kiln's integration runtime. Each adapter is a separate npm package that wraps a third-party API using its official SDK. Adapters depend on `@kilnai/core` for the `IntegrationAdapter` interface.
 
 ## Architecture
 
@@ -10,20 +10,20 @@ Consumer (Kiln gateway)
   → IntegrationExecutor.execute(operation, input)
     → CredentialResolver.resolve(tenantId, credentialKey)
     → adapter.execute(operation, credential, input, options)
-      → raw fetch to third-party API
+      → official SDK call (googleapis, stripe)
     → IntegrationResult { data }
 ```
 
-Adapters are pure API clients. They receive resolved credentials and make HTTP calls. They do NOT handle OAuth flows, credential storage, or token refresh — that's the consumer's responsibility.
+Adapters are API clients backed by official SDKs. They receive resolved credentials and call the provider's API. They do NOT handle OAuth flows, credential storage, or token refresh — that's the consumer's responsibility (Kilvo for SaaS, LocalCredentialResolver for self-hosted).
 
 ## Packages
 
-| Package | Scope | Provider | Operations |
-|---------|-------|----------|------------|
-| `packages/shared` | `@kilnai/integration-shared` | — | HTTP client, auth header builder, error types |
-| `packages/google-calendar` | `@kilnai/integration-google-calendar` | Google Calendar API v3 | check_availability, list_events, create_event, update_event, cancel_event |
-| `packages/stripe` | `@kilnai/integration-stripe` | Stripe API v1 | create_payment_link, list_payment_links, get_payment_link |
-| `packages/google-sheets` | `@kilnai/integration-google-sheets` | Google Sheets API v4 | read_range, append_rows, update_range |
+| Package | Scope | SDK | Operations |
+|---------|-------|-----|------------|
+| `packages/shared` | `@kilnai/integration-shared` | — | HTTP client, auth header builder, error types (for future raw-fetch adapters) |
+| `packages/google-calendar` | `@kilnai/integration-google-calendar` | `@googleapis/calendar` | check_availability, list_events, create_event, update_event, cancel_event |
+| `packages/stripe` | `@kilnai/integration-stripe` | `stripe` | create_payment_link, list_payment_links, get_payment_link |
+| `packages/google-sheets` | `@kilnai/integration-google-sheets` | `@googleapis/sheets` | read_range, append_rows, update_range |
 
 ## Per-Adapter Structure
 
@@ -32,7 +32,7 @@ packages/{provider}/
   src/
     index.ts       # Re-export adapter
     adapter.ts     # IntegrationAdapter implementation (operations + execute dispatch)
-    api.ts         # Low-level API client (typed methods, raw fetch)
+    api.ts         # SDK client wrapper (typed methods, official SDK calls)
   tests/
     adapter.test.ts
   package.json
@@ -50,18 +50,18 @@ bun run test          # Vitest all packages
 ## Dependency Rules
 
 1. Adapters depend on `@kilnai/core` as peer dependency (consumer provides it)
-2. Adapters depend on `@kilnai/integration-shared` as workspace dependency
-3. No third-party SDK dependencies — all API clients use raw `fetch`
+2. Each adapter depends on its provider's official SDK (`@googleapis/calendar`, `stripe`, etc.)
+3. Use standalone Google packages (`@googleapis/calendar`, not `googleapis`) to avoid pulling 200+ APIs
 4. No runtime dependency on `@kilnai/runtime` — adapters are engine-level
+5. `@kilnai/integration-shared` provides utilities for future raw-fetch adapters (not used by SDK-based ones)
 
 ## Testing
 
-Tests mock `fetch` via `vi.stubGlobal` and verify:
-- Correct API endpoint URLs
-- Request method, headers, body format
-- Response parsing and data extraction
+Tests mock SDK modules via `vi.mock()` and verify:
+- Correct SDK method calls with expected parameters
+- Response mapping from SDK types to IntegrationResult
 - Error propagation
-- AbortSignal passthrough
+- Operation routing (execute dispatch)
 
 ## Commit Format
 

@@ -1,60 +1,41 @@
+import { sheets_v4, auth as googleAuth } from "@googleapis/sheets";
 import type { ResolvedCredential } from "@kilnai/core";
-import { buildAuthHeaders, fetchJson, type HttpRequestOptions } from "@kilnai/integration-shared";
-
-const BASE_URL = "https://sheets.googleapis.com/v4/spreadsheets";
-
-export interface SheetValues {
-  range: string;
-  values: unknown[][];
-}
-
-export interface AppendResult {
-  updatedRange: string;
-  updatedRows: number;
-  updatedColumns: number;
-  updatedCells: number;
-}
 
 export class GoogleSheetsApi {
-  private readonly headers: Record<string, string>;
+  private readonly client: sheets_v4.Sheets;
 
-  constructor(
-    credential: ResolvedCredential,
-    private readonly signal?: AbortSignal,
-  ) {
-    this.headers = buildAuthHeaders(credential);
+  constructor(credential: ResolvedCredential) {
+    const oauth2 = new googleAuth.OAuth2();
+    oauth2.setCredentials({ access_token: credential.value });
+    this.client = new sheets_v4.Sheets({ auth: oauth2 });
   }
 
   async readRange(spreadsheetId: string, range: string): Promise<unknown[][]> {
-    const url = `${BASE_URL}/${enc(spreadsheetId)}/values/${enc(range)}`;
-    const res = await this.get<{ values?: unknown[][] }>(url);
-    return res.values ?? [];
+    const res = await this.client.spreadsheets.values.get({
+      spreadsheetId,
+      range,
+    });
+    return res.data.values ?? [];
   }
 
-  async appendRows(spreadsheetId: string, range: string, values: unknown[][]): Promise<AppendResult> {
-    const url = `${BASE_URL}/${enc(spreadsheetId)}/values/${enc(range)}:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`;
-    const res = await this.post<{ updates: AppendResult }>(url, { values });
-    return res.updates;
+  async appendRows(spreadsheetId: string, range: string, values: unknown[][]): Promise<sheets_v4.Schema$AppendValuesResponse> {
+    const res = await this.client.spreadsheets.values.append({
+      spreadsheetId,
+      range,
+      valueInputOption: "USER_ENTERED",
+      insertDataOption: "INSERT_ROWS",
+      requestBody: { values },
+    });
+    return res.data;
   }
 
-  async updateRange(spreadsheetId: string, range: string, values: unknown[][]): Promise<SheetValues> {
-    const url = `${BASE_URL}/${enc(spreadsheetId)}/values/${enc(range)}?valueInputOption=USER_ENTERED`;
-    return this.request<SheetValues>(url, { method: "PUT", body: { values } });
+  async updateRange(spreadsheetId: string, range: string, values: unknown[][]): Promise<sheets_v4.Schema$UpdateValuesResponse> {
+    const res = await this.client.spreadsheets.values.update({
+      spreadsheetId,
+      range,
+      valueInputOption: "USER_ENTERED",
+      requestBody: { values },
+    });
+    return res.data;
   }
-
-  private get<T>(url: string): Promise<T> {
-    return this.request<T>(url, {});
-  }
-
-  private post<T>(url: string, body: unknown): Promise<T> {
-    return this.request<T>(url, { method: "POST", body });
-  }
-
-  private request<T>(url: string, options: Omit<HttpRequestOptions, "headers" | "signal">): Promise<T> {
-    return fetchJson<T>(url, { ...options, headers: this.headers, signal: this.signal });
-  }
-}
-
-function enc(s: string): string {
-  return encodeURIComponent(s);
 }

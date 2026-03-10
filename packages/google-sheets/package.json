@@ -13,7 +13,7 @@
   },
   "files": ["dist"],
   "dependencies": {
-    "@kilnai/integration-shared": "workspace:*"
+    "@googleapis/sheets": "^13.0.1"
   },
   "peerDependencies": {
     "@kilnai/core": ">=0.14.0"

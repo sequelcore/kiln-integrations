@@ -1,18 +1,29 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
-import { adapter } from "../src/adapter.js";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ResolvedCredential } from "@kilnai/core";
+
+const mockGet = vi.fn();
+const mockAppend = vi.fn();
+const mockUpdate = vi.fn();
+
+vi.mock("@googleapis/sheets", () => ({
+  sheets_v4: {
+    Sheets: vi.fn(() => ({
+      spreadsheets: {
+        values: { get: mockGet, append: mockAppend, update: mockUpdate },
+      },
+    })),
+  },
+  auth: {
+    OAuth2: vi.fn(() => ({ setCredentials: vi.fn() })),
+  },
+}));
+
+const { adapter } = await import("../src/adapter.js");
 
 const cred: ResolvedCredential = { type: "bearer", value: "ya29.sheets-token" };
 
-function mockFetch(body: unknown, status = 200) {
-  const fn = vi.fn().mockResolvedValue(
-    new Response(JSON.stringify(body), { status }),
-  );
-  vi.stubGlobal("fetch", fn);
-  return fn;
-}
-
 describe("google_sheets adapter", () => {
+  beforeEach(() => vi.clearAllMocks());
   afterEach(() => vi.restoreAllMocks());
 
   it("has correct provider and 3 operations", () => {
@@ -25,22 +36,24 @@ describe("google_sheets adapter", () => {
     ]);
   });
 
-  it("read_range returns values from spreadsheet", async () => {
-    const values = [["Name", "Age"], ["Alice", "30"], ["Bob", "25"]];
-    const fetchMock = mockFetch({ values });
+  it("read_range calls spreadsheets.values.get", async () => {
+    const values = [["Name", "Age"], ["Alice", "30"]];
+    mockGet.mockResolvedValue({ data: { values } });
 
     const result = await adapter.execute("read_range", cred, {
       spreadsheetId: "abc123",
-      range: "Sheet1!A1:B3",
+      range: "Sheet1!A1:B2",
     });
 
     expect(result.data).toEqual({ values });
-    const [url] = fetchMock.mock.calls[0] as [string];
-    expect(url).toContain("/spreadsheets/abc123/values/Sheet1!A1%3AB3");
+    expect(mockGet).toHaveBeenCalledWith({
+      spreadsheetId: "abc123",
+      range: "Sheet1!A1:B2",
+    });
   });
 
   it("read_range returns empty array when no values", async () => {
-    mockFetch({});
+    mockGet.mockResolvedValue({ data: {} });
 
     const result = await adapter.execute("read_range", cred, {
       spreadsheetId: "abc123",
@@ -50,9 +63,16 @@ describe("google_sheets adapter", () => {
     expect(result.data).toEqual({ values: [] });
   });
 
-  it("append_rows sends POST with values and USER_ENTERED", async () => {
-    const fetchMock = mockFetch({
-      updates: { updatedRange: "Sheet1!A4:B5", updatedRows: 2, updatedColumns: 2, updatedCells: 4 },
+  it("append_rows calls spreadsheets.values.append with USER_ENTERED", async () => {
+    mockAppend.mockResolvedValue({
+      data: {
+        updates: {
+          updatedRange: "Sheet1!A4:B5",
+          updatedRows: 2,
+          updatedColumns: 2,
+          updatedCells: 4,
+        },
+      },
     });
 
     const result = await adapter.execute("append_rows", cred, {
@@ -67,17 +87,24 @@ describe("google_sheets adapter", () => {
       updatedColumns: 2,
       updatedCells: 4,
     });
-    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
-    expect(url).toContain(":append");
-    expect(url).toContain("valueInputOption=USER_ENTERED");
-    expect(url).toContain("insertDataOption=INSERT_ROWS");
-    expect(init.method).toBe("POST");
-    const body = JSON.parse(init.body as string);
-    expect(body.values).toEqual([["Charlie", "35"], ["Dave", "40"]]);
+    expect(mockAppend).toHaveBeenCalledWith({
+      spreadsheetId: "abc123",
+      range: "Sheet1!A1",
+      valueInputOption: "USER_ENTERED",
+      insertDataOption: "INSERT_ROWS",
+      requestBody: { values: [["Charlie", "35"], ["Dave", "40"]] },
+    });
   });
 
-  it("update_range sends PUT with values", async () => {
-    const fetchMock = mockFetch({ range: "Sheet1!A1:B1", values: [["Updated", "Value"]] });
+  it("update_range calls spreadsheets.values.update", async () => {
+    mockUpdate.mockResolvedValue({
+      data: {
+        updatedRange: "Sheet1!A1:B1",
+        updatedRows: 1,
+        updatedColumns: 2,
+        updatedCells: 2,
+      },
+    });
 
     const result = await adapter.execute("update_range", cred, {
       spreadsheetId: "abc123",
@@ -85,19 +112,18 @@ describe("google_sheets adapter", () => {
       values: [["Updated", "Value"]],
     });
 
-    expect(result.data).toEqual({ range: "Sheet1!A1:B1", values: [["Updated", "Value"]] });
-    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
-    expect(url).toContain("valueInputOption=USER_ENTERED");
-    expect(init.method).toBe("PUT");
-  });
-
-  it("sends Authorization header", async () => {
-    const fetchMock = mockFetch({ values: [] });
-
-    await adapter.execute("read_range", cred, { spreadsheetId: "x", range: "A1" });
-
-    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
-    expect((init.headers as Record<string, string>)["Authorization"]).toBe("Bearer ya29.sheets-token");
+    expect(result.data).toEqual({
+      updatedRange: "Sheet1!A1:B1",
+      updatedRows: 1,
+      updatedColumns: 2,
+      updatedCells: 2,
+    });
+    expect(mockUpdate).toHaveBeenCalledWith({
+      spreadsheetId: "abc123",
+      range: "Sheet1!A1:B1",
+      valueInputOption: "USER_ENTERED",
+      requestBody: { values: [["Updated", "Value"]] },
+    });
   });
 
   it("throws on unknown operation", async () => {

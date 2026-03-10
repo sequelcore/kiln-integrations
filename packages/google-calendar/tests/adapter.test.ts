@@ -1,18 +1,34 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
-import { adapter } from "../src/adapter.js";
-import type { ResolvedCredential, ExecutionOptions } from "@kilnai/core";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { ResolvedCredential } from "@kilnai/core";
+
+const mockQuery = vi.fn();
+const mockList = vi.fn();
+const mockInsert = vi.fn();
+const mockPatch = vi.fn();
+const mockDelete = vi.fn();
+
+vi.mock("@googleapis/calendar", () => ({
+  calendar_v3: {
+    Calendar: vi.fn(() => ({
+      freebusy: { query: mockQuery },
+      events: { list: mockList, insert: mockInsert, patch: mockPatch, delete: mockDelete },
+    })),
+  },
+  auth: {
+    OAuth2: vi.fn(() => ({ setCredentials: vi.fn() })),
+  },
+}));
+
+// Import after mock is set up
+const { adapter } = await import("../src/adapter.js");
 
 const cred: ResolvedCredential = { type: "bearer", value: "ya29.test-token" };
 
-function mockFetch(body: unknown, status = 200) {
-  const fn = vi.fn().mockResolvedValue(
-    new Response(JSON.stringify(body), { status }),
-  );
-  vi.stubGlobal("fetch", fn);
-  return fn;
-}
-
 describe("google_calendar adapter", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
   afterEach(() => vi.restoreAllMocks());
 
   it("has correct provider and 5 operations", () => {
@@ -27,9 +43,11 @@ describe("google_calendar adapter", () => {
     ]);
   });
 
-  it("check_availability calls freeBusy endpoint", async () => {
-    const fetchMock = mockFetch({
-      calendars: { primary: { busy: [{ start: "2026-03-10T09:00:00Z", end: "2026-03-10T10:00:00Z" }] } },
+  it("check_availability calls freebusy.query", async () => {
+    mockQuery.mockResolvedValue({
+      data: {
+        calendars: { primary: { busy: [{ start: "2026-03-10T09:00:00Z", end: "2026-03-10T10:00:00Z" }] } },
+      },
     });
 
     const result = await adapter.execute("check_availability", cred, {
@@ -40,13 +58,38 @@ describe("google_calendar adapter", () => {
     expect(result.data).toEqual({
       busy: [{ start: "2026-03-10T09:00:00Z", end: "2026-03-10T10:00:00Z" }],
     });
-    const [url] = fetchMock.mock.calls[0] as [string];
-    expect(url).toContain("/freeBusy");
+    expect(mockQuery).toHaveBeenCalledWith({
+      requestBody: {
+        timeMin: "2026-03-10T08:00:00Z",
+        timeMax: "2026-03-10T18:00:00Z",
+        items: [{ id: "primary" }],
+      },
+    });
+  });
+
+  it("check_availability uses custom calendarId", async () => {
+    mockQuery.mockResolvedValue({
+      data: { calendars: { "work@group.calendar.google.com": { busy: [] } } },
+    });
+
+    await adapter.execute("check_availability", cred, {
+      timeMin: "2026-03-10T00:00:00Z",
+      timeMax: "2026-03-10T23:59:59Z",
+      calendarId: "work@group.calendar.google.com",
+    });
+
+    expect(mockQuery).toHaveBeenCalledWith({
+      requestBody: {
+        timeMin: "2026-03-10T00:00:00Z",
+        timeMax: "2026-03-10T23:59:59Z",
+        items: [{ id: "work@group.calendar.google.com" }],
+      },
+    });
   });
 
   it("list_events returns events array", async () => {
     const events = [{ id: "e1", summary: "Meeting" }];
-    mockFetch({ items: events });
+    mockList.mockResolvedValue({ data: { items: events } });
 
     const result = await adapter.execute("list_events", cred, {
       timeMin: "2026-03-10T00:00:00Z",
@@ -54,18 +97,23 @@ describe("google_calendar adapter", () => {
     });
 
     expect(result.data).toEqual({ events });
+    expect(mockList).toHaveBeenCalledWith(expect.objectContaining({
+      calendarId: "primary",
+      singleEvents: true,
+      orderBy: "startTime",
+      maxResults: 5,
+    }));
   });
 
   it("list_events returns empty array when no items", async () => {
-    mockFetch({});
-
+    mockList.mockResolvedValue({ data: {} });
     const result = await adapter.execute("list_events", cred, {});
     expect(result.data).toEqual({ events: [] });
   });
 
-  it("create_event sends event body to calendar", async () => {
+  it("create_event calls events.insert with event body", async () => {
     const created = { id: "new-event", summary: "Haircut", htmlLink: "https://calendar.google.com/..." };
-    const fetchMock = mockFetch(created);
+    mockInsert.mockResolvedValue({ data: created });
 
     const result = await adapter.execute("create_event", cred, {
       summary: "Haircut",
@@ -75,17 +123,19 @@ describe("google_calendar adapter", () => {
     });
 
     expect(result.data).toEqual({ event: created });
-    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
-    expect(url).toContain("/calendars/primary/events");
-    expect(init.method).toBe("POST");
-    const body = JSON.parse(init.body as string);
-    expect(body.summary).toBe("Haircut");
-    expect(body.start.dateTime).toBe("2026-03-11T15:00:00Z");
-    expect(body.location).toBe("Barbershop");
+    expect(mockInsert).toHaveBeenCalledWith({
+      calendarId: "primary",
+      requestBody: expect.objectContaining({
+        summary: "Haircut",
+        start: { dateTime: "2026-03-11T15:00:00Z", timeZone: undefined },
+        end: { dateTime: "2026-03-11T16:00:00Z", timeZone: undefined },
+        location: "Barbershop",
+      }),
+    });
   });
 
   it("create_event handles all-day events", async () => {
-    const fetchMock = mockFetch({ id: "ad1", summary: "Vacation" });
+    mockInsert.mockResolvedValue({ data: { id: "ad1", summary: "Vacation" } });
 
     await adapter.execute("create_event", cred, {
       summary: "Vacation",
@@ -93,13 +143,17 @@ describe("google_calendar adapter", () => {
       endDate: "2026-03-20",
     });
 
-    const body = JSON.parse((fetchMock.mock.calls[0] as [string, RequestInit])[1].body as string);
-    expect(body.start).toEqual({ date: "2026-03-15" });
-    expect(body.end).toEqual({ date: "2026-03-20" });
+    expect(mockInsert).toHaveBeenCalledWith({
+      calendarId: "primary",
+      requestBody: expect.objectContaining({
+        start: { date: "2026-03-15" },
+        end: { date: "2026-03-20" },
+      }),
+    });
   });
 
   it("create_event maps attendees to email objects", async () => {
-    const fetchMock = mockFetch({ id: "e1", summary: "Sync" });
+    mockInsert.mockResolvedValue({ data: { id: "e1" } });
 
     await adapter.execute("create_event", cred, {
       summary: "Sync",
@@ -107,12 +161,16 @@ describe("google_calendar adapter", () => {
       attendees: ["a@example.com", "b@example.com"],
     });
 
-    const body = JSON.parse((fetchMock.mock.calls[0] as [string, RequestInit])[1].body as string);
-    expect(body.attendees).toEqual([{ email: "a@example.com" }, { email: "b@example.com" }]);
+    expect(mockInsert).toHaveBeenCalledWith({
+      calendarId: "primary",
+      requestBody: expect.objectContaining({
+        attendees: [{ email: "a@example.com" }, { email: "b@example.com" }],
+      }),
+    });
   });
 
-  it("update_event sends PATCH with partial fields", async () => {
-    const fetchMock = mockFetch({ id: "e1", summary: "Updated" });
+  it("update_event calls events.patch with partial fields", async () => {
+    mockPatch.mockResolvedValue({ data: { id: "e1", summary: "Updated" } });
 
     const result = await adapter.execute("update_event", cred, {
       eventId: "e1",
@@ -121,45 +179,26 @@ describe("google_calendar adapter", () => {
     });
 
     expect(result.data).toEqual({ event: { id: "e1", summary: "Updated" } });
-    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
-    expect(url).toContain("/events/e1");
-    expect(init.method).toBe("PATCH");
-    const body = JSON.parse(init.body as string);
-    expect(body.summary).toBe("Updated");
-    expect(body.start).toEqual({ dateTime: "2026-03-11T16:00:00Z" });
+    expect(mockPatch).toHaveBeenCalledWith({
+      calendarId: "primary",
+      eventId: "e1",
+      requestBody: {
+        summary: "Updated",
+        start: { dateTime: "2026-03-11T16:00:00Z" },
+      },
+    });
   });
 
-  it("cancel_event sends DELETE", async () => {
-    const fetchMock = mockFetch("", 200);
+  it("cancel_event calls events.delete", async () => {
+    mockDelete.mockResolvedValue({});
 
     const result = await adapter.execute("cancel_event", cred, { eventId: "e1" });
 
     expect(result.data).toEqual({ cancelled: true });
-    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
-    expect(url).toContain("/events/e1");
-    expect(init.method).toBe("DELETE");
-  });
-
-  it("uses custom calendarId when provided", async () => {
-    const fetchMock = mockFetch({ items: [] });
-
-    await adapter.execute("list_events", cred, { calendarId: "work@group.calendar.google.com" });
-
-    const [url] = fetchMock.mock.calls[0] as [string];
-    expect(url).toContain("/calendars/work%40group.calendar.google.com/events");
-  });
-
-  it("passes AbortSignal from ExecutionOptions", async () => {
-    const fetchMock = mockFetch({ calendars: { primary: { busy: [] } } });
-    const controller = new AbortController();
-
-    await adapter.execute("check_availability", cred, {
-      timeMin: "2026-03-10T00:00:00Z",
-      timeMax: "2026-03-10T23:59:59Z",
-    }, { signal: controller.signal, timeoutMs: 30_000 } as ExecutionOptions);
-
-    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
-    expect(init.signal).toBe(controller.signal);
+    expect(mockDelete).toHaveBeenCalledWith({
+      calendarId: "primary",
+      eventId: "e1",
+    });
   });
 
   it("throws on unknown operation", async () => {
