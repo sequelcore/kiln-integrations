@@ -1,6 +1,6 @@
 {
   "name": "@kilnai/integration-stripe",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "description": "Stripe integration adapter for Kiln AI — payment links, product lookup",
   "type": "module",
   "repository": {
@@ -26,6 +26,6 @@
     "stripe": "^20.4.1"
   },
   "peerDependencies": {
-    "@kilnai/core": "^2.0.0"
+    "@kilnai/core": "^2.1.0"
   }
 }

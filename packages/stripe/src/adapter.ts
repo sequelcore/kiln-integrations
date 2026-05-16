@@ -4,7 +4,7 @@ import { StripeApi } from "./api.js";
 
 export const adapter: IntegrationAdapter = {
   provider: "stripe",
-  version: "2.0.0",
+  version: "2.1.0",
   operations: [
     {
       name: "create_payment_link",

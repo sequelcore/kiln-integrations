@@ -78,7 +78,7 @@ Raw `fetch` is appropriate in the Kiln engine (simple webhook POSTs, Meta API ca
 
 ## Dependency Rules
 
-1. Each adapter depends on `@kilnai/core` `^2.0.0` as **peer dependency** (consumer provides it at runtime).
+1. Each adapter depends on `@kilnai/core` `^2.1.0` as **peer dependency** (consumer provides it at runtime).
 2. Each adapter depends on its provider's **official SDK** as a regular dependency.
 3. Use standalone Google API packages (`@googleapis/{service}`), not the full `googleapis` monolith.
 4. No dependency on `@kilnai/runtime` — adapters are engine-level, they implement `IntegrationAdapter` from core.

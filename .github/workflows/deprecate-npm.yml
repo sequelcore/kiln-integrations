@@ -31,7 +31,7 @@ jobs:
 
           for (const name of packages) {
             const spec = `${name}@<2.0.0`;
-            const message = `Experimental pre-2.0 releases are deprecated. Please upgrade to ${name}@2.0.0 or later.`;
+            const message = `Experimental pre-2.0 releases are deprecated. Please upgrade to ${name}@2.1.0 or later.`;
             console.log(`Deprecating ${spec}`);
             const result = spawnSync("npm", ["deprecate", spec, message], {
               stdio: "inherit",

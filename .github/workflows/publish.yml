@@ -56,8 +56,8 @@ jobs:
               failures.push(`${file}: expected version ${version}, found ${manifest.version}`);
             }
 
-            if (manifest.peerDependencies?.["@kilnai/core"] !== "^2.0.0") {
-              failures.push(`${file}: peerDependencies.@kilnai/core must be ^2.0.0`);
+            if (manifest.peerDependencies?.["@kilnai/core"] !== "^2.1.0") {
+              failures.push(`${file}: peerDependencies.@kilnai/core must be ^2.1.0`);
             }
 
             for (const section of ["dependencies", "peerDependencies", "optionalDependencies"]) {
