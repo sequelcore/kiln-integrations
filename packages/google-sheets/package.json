@@ -3,6 +3,11 @@
   "version": "2.0.0",
   "description": "Google Sheets integration adapter for Kiln AI — read ranges, append rows, update cells",
   "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/sequelcore/kiln-integrations.git",
+    "directory": "packages/google-sheets"
+  },
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "exports": {

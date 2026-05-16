@@ -3,6 +3,11 @@
   "version": "2.0.0",
   "description": "Google Calendar integration adapter for Kiln AI — check availability, create/update/cancel events",
   "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/sequelcore/kiln-integrations.git",
+    "directory": "packages/google-calendar"
+  },
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "exports": {

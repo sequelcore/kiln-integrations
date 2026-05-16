@@ -3,6 +3,11 @@
   "version": "2.0.0",
   "description": "Stripe integration adapter for Kiln AI — payment links, product lookup",
   "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/sequelcore/kiln-integrations.git",
+    "directory": "packages/stripe"
+  },
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "exports": {
