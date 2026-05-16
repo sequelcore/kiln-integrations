@@ -1,0 +1,44 @@
+name: Deprecate npm Versions
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  deprecate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+          registry-url: "https://registry.npmjs.org"
+
+      - name: Deprecate experimental pre-2.0 packages
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          node <<'NODE'
+          const { spawnSync } = require("node:child_process");
+
+          const packages = [
+            "@kilnai/integration-shared",
+            "@kilnai/integration-google-calendar",
+            "@kilnai/integration-stripe",
+            "@kilnai/integration-google-sheets",
+          ];
+
+          for (const name of packages) {
+            const spec = `${name}@<2.0.0`;
+            const message = `Experimental pre-2.0 releases are deprecated. Please upgrade to ${name}@2.0.0 or later.`;
+            console.log(`Deprecating ${spec}`);
+            const result = spawnSync("npm", ["deprecate", spec, message], {
+              stdio: "inherit",
+              env: process.env,
+            });
+            if (result.status !== 0) {
+              process.exit(result.status ?? 1);
+            }
+          }
+          NODE
