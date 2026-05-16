@@ -3,27 +3,77 @@ name: Publish
 on:
   push:
     tags:
-      - "v*"
+      - "v2.*"
 
 permissions:
   contents: read
   id-token: write
 
+concurrency:
+  group: publish-${{ github.ref_name }}
+  cancel-in-progress: false
+
 jobs:
   publish:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest
 
-      - name: Install @kilnai/core from npm (replace file reference)
-        run: |
-          jq '.devDependencies["@kilnai/core"] = "latest"' package.json > tmp.json && mv tmp.json package.json
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+          registry-url: "https://registry.npmjs.org"
 
-      - run: bun install
+      - run: bun install --frozen-lockfile
+
+      - name: Validate release tag and package graph
+        run: |
+          VERSION=$(node -p "require('./packages/shared/package.json').version")
+          if [ "${GITHUB_REF_NAME}" != "v${VERSION}" ]; then
+            echo "Tag ${GITHUB_REF_NAME} does not match package version ${VERSION}."
+            exit 1
+          fi
+
+          node <<'NODE'
+          const fs = require("fs");
+          const path = require("path");
+
+          const packagesDir = "packages";
+          const packages = fs.readdirSync(packagesDir)
+            .map((name) => path.join(packagesDir, name, "package.json"))
+            .filter((file) => fs.existsSync(file))
+            .map((file) => ({ file, manifest: JSON.parse(fs.readFileSync(file, "utf8")) }));
+
+          const version = packages.find((pkg) => pkg.manifest.name === "@kilnai/integration-shared").manifest.version;
+          const failures = [];
+
+          for (const { file, manifest } of packages) {
+            if (manifest.version !== version) {
+              failures.push(`${file}: expected version ${version}, found ${manifest.version}`);
+            }
+
+            if (manifest.peerDependencies?.["@kilnai/core"] !== "^2.0.0") {
+              failures.push(`${file}: peerDependencies.@kilnai/core must be ^2.0.0`);
+            }
+
+            for (const section of ["dependencies", "peerDependencies", "optionalDependencies"]) {
+              for (const [name, range] of Object.entries(manifest[section] ?? {})) {
+                if (name.startsWith("@kilnai/integration-") && range !== `^${version}` && range !== version && range !== "workspace:*") {
+                  failures.push(`${file}: ${section}.${name} must target ${version}, found ${range}`);
+                }
+              }
+            }
+          }
+
+          if (failures.length > 0) {
+            console.error(failures.join("\n"));
+            process.exit(1);
+          }
+          NODE
 
       - name: Typecheck
         run: bun run typecheck
@@ -31,37 +81,62 @@ jobs:
       - name: Test
         run: bun run test
 
-      - name: Configure npm auth
-        run: |
-          echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" > .npmrc
-          cp .npmrc packages/shared/.npmrc
-          cp .npmrc packages/google-calendar/.npmrc
-          cp .npmrc packages/stripe/.npmrc
-          cp .npmrc packages/google-sheets/.npmrc
-        env:
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+      - name: Build
+        run: bun run build
 
-      - name: Resolve workspace references
+      - name: Resolve workspace versions for publish
         run: |
-          VERSION=$(jq -r .version packages/shared/package.json)
-          for pkg in packages/google-calendar packages/stripe packages/google-sheets; do
-            jq --arg v "^$VERSION" '
-              (.dependencies // {}) |= with_entries(if .value == "workspace:*" then .value = $v else . end)
-            ' "$pkg/package.json" > tmp.json && mv tmp.json "$pkg/package.json"
-          done
+          node <<'NODE'
+          const fs = require("fs");
+          const path = require("path");
+
+          const packagesDir = "packages";
+          const version = JSON.parse(fs.readFileSync("packages/shared/package.json", "utf8")).version;
+
+          for (const packageName of fs.readdirSync(packagesDir)) {
+            const manifestPath = path.join(packagesDir, packageName, "package.json");
+            if (!fs.existsSync(manifestPath)) {
+              continue;
+            }
+
+            const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
+            for (const section of ["dependencies", "peerDependencies", "optionalDependencies", "devDependencies"]) {
+              const deps = manifest[section];
+              if (!deps) {
+                continue;
+              }
+
+              for (const name of Object.keys(deps)) {
+                if (name.startsWith("@kilnai/integration-") && deps[name] === "workspace:*") {
+                  deps[name] = `^${version}`;
+                }
+              }
+            }
+
+            fs.writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
+          }
+          NODE
 
       - name: Publish @kilnai/integration-shared
         working-directory: packages/shared
-        run: bun publish --access public --no-git-checks
+        run: npm publish --access public --provenance
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Publish @kilnai/integration-google-calendar
         working-directory: packages/google-calendar
-        run: bun publish --access public --no-git-checks
+        run: npm publish --access public --provenance
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Publish @kilnai/integration-stripe
         working-directory: packages/stripe
-        run: bun publish --access public --no-git-checks
+        run: npm publish --access public --provenance
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Publish @kilnai/integration-google-sheets
         working-directory: packages/google-sheets
-        run: bun publish --access public --no-git-checks
+        run: npm publish --access public --provenance
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

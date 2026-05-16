@@ -5,46 +5,46 @@
     "": {
       "name": "kiln-integrations",
       "devDependencies": {
-        "@kilnai/core": "file:../kiln/packages/core",
+        "@kilnai/core": "^2.0.0",
         "typescript": "^5.6.0",
         "vitest": "^3.0.0",
       },
     },
     "packages/google-calendar": {
       "name": "@kilnai/integration-google-calendar",
-      "version": "0.1.0",
+      "version": "2.0.0",
       "dependencies": {
         "@googleapis/calendar": "^14.2.0",
       },
       "peerDependencies": {
-        "@kilnai/core": ">=0.14.0",
+        "@kilnai/core": "^2.0.0",
       },
     },
     "packages/google-sheets": {
       "name": "@kilnai/integration-google-sheets",
-      "version": "0.1.0",
+      "version": "2.0.0",
       "dependencies": {
         "@googleapis/sheets": "^13.0.1",
       },
       "peerDependencies": {
-        "@kilnai/core": ">=0.14.0",
+        "@kilnai/core": "^2.0.0",
       },
     },
     "packages/shared": {
       "name": "@kilnai/integration-shared",
-      "version": "0.1.0",
+      "version": "2.0.0",
       "peerDependencies": {
-        "@kilnai/core": ">=0.14.0",
+        "@kilnai/core": "^2.0.0",
       },
     },
     "packages/stripe": {
       "name": "@kilnai/integration-stripe",
-      "version": "0.1.0",
+      "version": "2.0.0",
       "dependencies": {
         "stripe": "^20.4.1",
       },
       "peerDependencies": {
-        "@kilnai/core": ">=0.14.0",
+        "@kilnai/core": "^2.0.0",
       },
     },
   },
@@ -115,7 +115,7 @@
 
     "@jridgewell/sourcemap-codec": ["@jridgewell/sourcemap-codec@1.5.5", "", {}, "sha512-cYQ9310grqxueWbl+WuIUIaiUaDcj7WOq5fVhEljNVgRfOUhY9fy2zTvfoqWsnebh8Sl70VScFbICvJnLKB0Og=="],
 
-    "@kilnai/core": ["@kilnai/core@file:../kiln/packages/core", { "dependencies": { "@anthropic-ai/sdk": "^0.74.0", "@modelcontextprotocol/sdk": "^1.26.0", "yaml": "^2.8.2" }, "devDependencies": { "@opentelemetry/api": "^1.9.0" }, "peerDependencies": { "@opentelemetry/api": "^1.9.0", "postgres": "^3.4.0", "unpdf": ">=0.12.0" }, "optionalPeers": ["@opentelemetry/api", "postgres", "unpdf"] }],
+    "@kilnai/core": ["@kilnai/core@2.0.0", "", { "dependencies": { "@anthropic-ai/sdk": "^0.74.0", "@modelcontextprotocol/sdk": "^1.26.0", "yaml": "^2.8.2" }, "peerDependencies": { "@opentelemetry/api": "^1.9.0", "postgres": "^3.4.0", "unpdf": ">=0.12.0" }, "optionalPeers": ["@opentelemetry/api", "postgres", "unpdf"] }, "sha512-BgyVUhFP+lm0oeUewt1xWPoY6rmwGaeMp0la4qHYp/pmApfrxWLMdVYkfp30tbUPx7KeaaAhkcXP2BFvcsujig=="],
 
     "@kilnai/integration-google-calendar": ["@kilnai/integration-google-calendar@workspace:packages/google-calendar"],
 
@@ -126,8 +126,6 @@
     "@kilnai/integration-stripe": ["@kilnai/integration-stripe@workspace:packages/stripe"],
 
     "@modelcontextprotocol/sdk": ["@modelcontextprotocol/sdk@1.27.1", "", { "dependencies": { "@hono/node-server": "^1.19.9", "ajv": "^8.17.1", "ajv-formats": "^3.0.1", "content-type": "^1.0.5", "cors": "^2.8.5", "cross-spawn": "^7.0.5", "eventsource": "^3.0.2", "eventsource-parser": "^3.0.0", "express": "^5.2.1", "express-rate-limit": "^8.2.1", "hono": "^4.11.4", "jose": "^6.1.3", "json-schema-typed": "^8.0.2", "pkce-challenge": "^5.0.0", "raw-body": "^3.0.0", "zod": "^3.25 || ^4.0", "zod-to-json-schema": "^3.25.1" }, "peerDependencies": { "@cfworker/json-schema": "^4.1.1" }, "optionalPeers": ["@cfworker/json-schema"] }, "sha512-sr6GbP+4edBwFndLbM60gf07z0FQ79gaExpnsjMGePXqFcSSb7t6iscpjk9DhFhwd+mTEQrzNafGP8/iGGFYaA=="],
-
-    "@opentelemetry/api": ["@opentelemetry/api@1.9.0", "", {}, "sha512-3giAOQvZiH5F9bMlMiv8+GSPMeqg0dbaeo58/0SlA9sxSqZhnUtxzX9/2FzyhS9sWQf5S0GJE0AKBrFqjpeYcg=="],
 
     "@pkgjs/parseargs": ["@pkgjs/parseargs@0.11.0", "", {}, "sha512-+1VkjdD0QBLPodGrJUeqarH8VAIvQODIbwh9XpP5Syisf7YoQgsJKPNFoqqLQlu+VQ/tVSshMR6loPMn8U+dPg=="],
 
@@ -556,8 +554,6 @@
     "zod": ["zod@4.3.6", "", {}, "sha512-rftlrkhHZOcjDwkGlnUtZZkvaPHCsDATp4pGpuOOMDaTdDDXF91wuVDJoWoPsKX/3YPQ5fHuF3STjcYyKr+Qhg=="],
 
     "zod-to-json-schema": ["zod-to-json-schema@3.25.1", "", { "peerDependencies": { "zod": "^3.25 || ^4" } }, "sha512-pM/SU9d3YAggzi6MtR4h7ruuQlqKtad8e9S0fmxcMi+ueAK5Korys/aWcV9LIIHTVbj01NdzxcnXSN+O74ZIVA=="],
-
-    "@kilnai/integration-shared/@kilnai/core": ["@kilnai/core@file:../kiln/packages/core", { "dependencies": { "@anthropic-ai/sdk": "^0.74.0", "@modelcontextprotocol/sdk": "^1.26.0", "yaml": "^2.8.2" }, "devDependencies": { "@opentelemetry/api": "^1.9.0" }, "peerDependencies": { "@opentelemetry/api": "^1.9.0", "postgres": "^3.4.0", "unpdf": ">=0.12.0" }, "optionalPeers": ["@opentelemetry/api", "postgres", "unpdf"] }],
 
     "google-auth-library/gaxios": ["gaxios@7.1.3", "", { "dependencies": { "extend": "^3.0.2", "https-proxy-agent": "^7.0.1", "node-fetch": "^3.3.2", "rimraf": "^5.0.1" } }, "sha512-YGGyuEdVIjqxkxVH1pUTMY/XtmmsApXrCVv5EU25iX6inEPbV+VakJfLealkBtJN69AQmh1eGOdCl9Sm1UP6XQ=="],
 

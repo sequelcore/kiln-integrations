@@ -27,7 +27,7 @@
 bun add @kilnai/integration-stripe
 ```
 
-Requires `@kilnai/core` >= 0.14.0 as a peer dependency.
+Requires `@kilnai/core` `^2.0.0` as a peer dependency.
 
 ## Usage
 

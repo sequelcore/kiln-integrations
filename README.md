@@ -45,7 +45,7 @@ bun add @kilnai/integration-stripe
 bun add @kilnai/integration-google-sheets
 ```
 
-Requires `@kilnai/core` >= 0.14.0 as a peer dependency.
+Requires `@kilnai/core` `^2.0.0` as a peer dependency.
 
 ## Usage
 
@@ -74,7 +74,7 @@ bun run typecheck
 bun run test
 ```
 
-Requires the [kiln](https://github.com/sequelcore/kiln) repo cloned as a sibling directory for local `@kilnai/core` types.
+The repository uses the published `@kilnai/core` 2.x package for local development. When testing unreleased Kiln core changes, temporarily link a local core build and restore the published dependency before committing.
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for the full guide on adding adapters.
 

@@ -4,7 +4,7 @@ import { GoogleCalendarApi } from "./api.js";
 
 export const adapter: IntegrationAdapter = {
   provider: "google_calendar",
-  version: "0.1.0",
+  version: "2.0.0",
   operations: [
     {
       name: "check_availability",

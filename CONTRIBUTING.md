@@ -10,18 +10,11 @@ bun run typecheck
 bun run test
 ```
 
-### Local Development with Kiln
+### Kiln Core Dependency
 
-The monorepo references `@kilnai/core` from the local Kiln repo via `file:../kiln/packages/core` in the root `package.json`. Ensure the `kiln` repo is cloned as a sibling directory and built:
+This repository develops against the published `@kilnai/core` 2.x package. Adapter packages declare `@kilnai/core` as a peer dependency because the consuming Kiln runtime provides it.
 
-```bash
-# Required directory structure
-C:\Proyectos\Sequel\
-  kiln/                  # @kilnai/core source
-  kiln-integrations/     # this repo
-```
-
-If you change interfaces in `@kilnai/core`, rebuild Kiln first (`cd ../kiln && bun run typecheck`), then re-run `bun install` here.
+When testing unreleased Kiln core changes, temporarily link a local core build in your working tree. Do not commit local `file:` dependencies or lockfile changes that point at a machine-specific path.
 
 ## Project Structure
 
@@ -85,7 +78,7 @@ Raw `fetch` is appropriate in the Kiln engine (simple webhook POSTs, Meta API ca
 
 ## Dependency Rules
 
-1. Each adapter depends on `@kilnai/core` as **peer dependency** (consumer provides it at runtime).
+1. Each adapter depends on `@kilnai/core` `^2.0.0` as **peer dependency** (consumer provides it at runtime).
 2. Each adapter depends on its provider's **official SDK** as a regular dependency.
 3. Use standalone Google API packages (`@googleapis/{service}`), not the full `googleapis` monolith.
 4. No dependency on `@kilnai/runtime` — adapters are engine-level, they implement `IntegrationAdapter` from core.

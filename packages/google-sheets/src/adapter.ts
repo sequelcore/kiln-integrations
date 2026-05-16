@@ -3,7 +3,7 @@ import { GoogleSheetsApi } from "./api.js";
 
 export const adapter: IntegrationAdapter = {
   provider: "google_sheets",
-  version: "0.1.0",
+  version: "2.0.0",
   operations: [
     {
       name: "read_range",

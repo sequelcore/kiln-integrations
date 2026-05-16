@@ -6,21 +6,20 @@ on:
   pull_request:
     branches: [main]
 
+permissions:
+  contents: read
+
 jobs:
   check:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest
 
-      - name: Install @kilnai/core from npm (replace file reference)
-        run: |
-          jq '.devDependencies["@kilnai/core"] = "latest"' package.json > tmp.json && mv tmp.json package.json
-
-      - run: bun install
+      - run: bun install --frozen-lockfile
 
       - name: Typecheck
         run: bun run typecheck
