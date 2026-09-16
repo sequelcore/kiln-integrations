@@ -4,6 +4,11 @@
 
 <h1 align="center">Kiln Integrations</h1>
 
+> [!IMPORTANT]
+> Kiln has been retired. This repository is preserved read-only for source,
+> license, and package provenance. Its npm packages are unsupported and must not
+> be used for new integrations.
+
 <p align="center">
   <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="License: MIT" /></a>
 </p>
